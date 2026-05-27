@@ -1,0 +1,17 @@
+# Web Framework
+fastapi
+uvicorn
+
+# Database Connection
+psycopg2-binary
+sqlalchemy
+
+# Data Science & ML
+pandas
+scikit-learn
+numpy
+
+# Environment & Utils
+python-dotenv
+requests
+pymongo
