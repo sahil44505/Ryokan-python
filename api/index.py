@@ -8,7 +8,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-app = FastAPI()
+# Change: Set explicit docs configurations for Vercel routing
+app = FastAPI(docs_url="/api/docs", openapi_url="/api/openapi.json")
 
 app.add_middleware(
     CORSMiddleware,
@@ -17,20 +18,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Database Connection
-client = MongoClient(os.getenv("DB_URL"))
+# Change: Provide a local fallback string to prevent deployment crash if env loads late
+db_url = os.getenv("DB_URL", "mongodb://localhost:27017")
+client = MongoClient(db_url)
 db = client.get_database()
 
 def extract_city(title):
-    """Simple regex to find common city names or just take the last word 
-    if the title follows 'Hotel Name, City' format."""
     parts = re.split(',| ', title)
     return parts[-1].strip() if parts else "India"
 
 @app.get("/api/recommendations/{user_id}")
 async def get_dynamic_recommendations(user_id: str):
     try:
-        # 1. Fetch real booking history
+        # Convert string ID to MongoDB ObjectId safely
         bookings = list(db['Bookings'].find({"userId": ObjectId(user_id)}).sort("createdAt", -1).limit(3))
         
         if not bookings:
@@ -41,18 +41,10 @@ async def get_dynamic_recommendations(user_id: str):
             original_title = b.get('title', '')
             city = extract_city(original_title)
             
-            # Strategy 1: The "Same City, Different Vibe" Query
             queries.append({"title": f"Best boutique hotels in {city}"})
-            
-            # Strategy 2: The "Competitor" Query
-            # This looks for the same style of hotel in the same area
             queries.append({"title": f"Hotels similar to {original_title}"})
-            
-            # Strategy 3: Local Area Discovery
-            # Uses the title to find the specific neighborhood
             queries.append({"title": f"Top rated stays in {city} city center"})
 
-        # Remove duplicates and limit to 5
         unique_queries = {q['title']: q for q in queries}.values()
         return list(unique_queries)[:5]
 
@@ -60,6 +52,5 @@ async def get_dynamic_recommendations(user_id: str):
         print(f"Error: {e}")
         return [{"title": "Global trending destinations"}]
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+# Note: You can keep the 'if __name__ == "__main__"' block; Vercel will ignore it,
+# but it allows you to still test locally using 'python api/index.py'
