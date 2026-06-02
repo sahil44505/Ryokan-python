@@ -26,6 +26,9 @@ db = client.get_database()
 def extract_city(title):
     parts = re.split(',| ', title)
     return parts[-1].strip() if parts else "India"
+@app.get("/")
+async def root():
+    return {"message": "Welcome to the Hotel Recommendations API!"}
 
 @app.get("/api/recommendations/{user_id}")
 async def get_dynamic_recommendations(user_id: str):
